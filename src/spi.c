@@ -59,6 +59,7 @@ int  writespi (spi_t *device, unsigned char *buff, int n, char *msg)
     int rc;
 	struct spi_ioc_transfer transaction = {0};
 
+    n = 100;
 	transaction.tx_buf = (unsigned long) buff;
 	transaction.rx_buf = (unsigned long) NULL;
 	transaction.len = n;
@@ -67,6 +68,7 @@ int  writespi (spi_t *device, unsigned char *buff, int n, char *msg)
 
     rc = ioctl(device->fd, SPI_IOC_MESSAGE(1), &transaction);
     if (rc < 0) {
+        debug("n: %d\n", n);
         perror("ioctl: ");
         return 0;
     }
@@ -79,6 +81,7 @@ int  readspi  (spi_t *device, unsigned char *buff, int n, char *msg)
     int rc;
 	struct spi_ioc_transfer transaction = {0};
 
+    n = 100;
 	transaction.tx_buf = (unsigned long) NULL;
 	transaction.rx_buf = (unsigned long) buff;
 	transaction.len = n;
@@ -87,6 +90,7 @@ int  readspi  (spi_t *device, unsigned char *buff, int n, char *msg)
 
     rc = ioctl(device->fd, SPI_IOC_MESSAGE(1), &transaction);
     if (rc < 0) {
+        debug("n: %d\n", n);
         perror("ioctl: ");
         return 0;
     }
