@@ -47,6 +47,8 @@ spi_t *openspi(const char *path, int mode, char *msg)
     /* hardcoded spi mode for Ublox */
     device->mode = SPI_MODE_0;
 
+    return device;
+
 errout_with_free:
     free(device);
     return NULL;
