@@ -56,12 +56,42 @@ errout_with_free:
 
 int  writespi (spi_t *device, unsigned char *buff, int n, char *msg)
 {
-    return 0;
+    int rc;
+	struct spi_ioc_transfer transaction = {0};
+
+	transaction.tx_buf = (unsigned long) buff;
+	transaction.rx_buf = (unsigned long) NULL;
+	transaction.len = n;
+	transaction.speed_hz = 245000;
+	transaction.bits_per_word = 8;
+
+    rc = ioctl(device->fd, SPI_IOC_MESSAGE(1), &transaction);
+    if (rc < 0) {
+        perror("ioctl: ");
+        return 0;
+    }
+    
+    return n;
 }
 
 int  readspi  (spi_t *device, unsigned char *buff, int n, char *msg)
 {
-    return 0;
+    int rc;
+	struct spi_ioc_transfer transaction = {0};
+
+	transaction.tx_buf = (unsigned long) NULL;
+	transaction.rx_buf = (unsigned long) buff;
+	transaction.len = n;
+	transaction.speed_hz = 245000;
+	transaction.bits_per_word = 8;
+
+    rc = ioctl(device->fd, SPI_IOC_MESSAGE(1), &transaction);
+    if (rc < 0) {
+        perror("ioctl: ");
+        return 0;
+    }
+
+    return n;
 }
 
 int  statespi (spi_t *device)
