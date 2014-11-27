@@ -96,9 +96,16 @@ int  readspi  (spi_t *device, unsigned char *buff, int n, char *msg)
 
 int  statespi (spi_t *device)
 {
-    return 0;
+    return 3;
 }
 
 void closespi (spi_t *device)
 {
+    int rc;
+
+    rc = close(device->fd);
+
+    if (rc < 0) {
+        perror("close: ");
+    }
 }
