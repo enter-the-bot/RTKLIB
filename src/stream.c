@@ -1866,6 +1866,7 @@ extern void strclose(stream_t *stream)
             case STR_NTRIPCLI: closentrip ((ntrip_t  *)stream->port); break;
             case STR_FTP     : closeftp   ((ftp_t    *)stream->port); break;
             case STR_HTTP    : closeftp   ((ftp_t    *)stream->port); break;
+            case STR_SPI     : closespi   ((spi_t    *)stream->port); break;
         }
     }
     else {
@@ -1930,6 +1931,7 @@ extern int strread(stream_t *stream, unsigned char *buff, int n)
         case STR_NTRIPCLI: nr=readntrip ((ntrip_t  *)stream->port,buff,n,msg); break;
         case STR_FTP     : nr=readftp   ((ftp_t    *)stream->port,buff,n,msg); break;
         case STR_HTTP    : nr=readftp   ((ftp_t    *)stream->port,buff,n,msg); break;
+        case STR_SPI     : nr=readspi   ((spi_t    *)stream->port,buff,n,msg); break;
         default:
             strunlock(stream);
             return 0;
@@ -1973,6 +1975,7 @@ extern int strwrite(stream_t *stream, unsigned char *buff, int n)
         case STR_NTRIPSVR: ns=writentrip ((ntrip_t  *)stream->port,buff,n,msg); break;
         case STR_FTP     :
         case STR_HTTP    :
+        case STR_SPI     : ns=writespi   ((spi_t    *)stream->port,buff,n,msg); break;
         default:
             strunlock(stream);
             return 0;
@@ -2016,6 +2019,7 @@ extern int strstat(stream_t *stream, char *msg)
         case STR_NTRIPCLI: state=statentrip ((ntrip_t  *)stream->port); break;
         case STR_FTP     : state=stateftp   ((ftp_t    *)stream->port); break;
         case STR_HTTP    : state=stateftp   ((ftp_t    *)stream->port); break;
+        case STR_SPI     : state=statespi   ((spi_t    *)stream->port); break;
         default:
             strunlock(stream);
             return 0;
