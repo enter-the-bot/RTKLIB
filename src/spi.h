@@ -12,9 +12,9 @@ struct spi_s
 typedef struct spi_s spi_t;
 
 spi_t *openspi(const char *path, int mode, char *msg);
-int  writespi (spi_t *spi, unsigned char *buff, int n, char *msg);
-int  readspi  (spi_t *spi, unsigned char *buff, int n, char *msg);
-int  statespi (spi_t *spi);
-void closespi (spi_t *spi);
+int  writespi (spi_t *device, unsigned char *buff, int n, char *msg);
+int  readspi  (spi_t *device, unsigned char *buff, int n, char *msg);
+int  statespi (spi_t *device);
+void closespi (spi_t *device);
 
 #endif

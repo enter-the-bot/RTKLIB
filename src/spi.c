@@ -52,21 +52,21 @@ errout_with_free:
     return NULL;
 }
 
-int  writespi (spi_t *spi, unsigned char *buff, int n, char *msg)
+int  writespi (spi_t *device, unsigned char *buff, int n, char *msg)
 {
     return 0;
 }
 
-int  readspi  (spi_t *spi, unsigned char *buff, int n, char *msg)
+int  readspi  (spi_t *device, unsigned char *buff, int n, char *msg)
 {
     return 0;
 }
 
-int  statespi (spi_t *spi)
+int  statespi (spi_t *device)
 {
     return 0;
 }
 
-void closespi (spi_t *spi)
+void closespi (spi_t *device)
 {
 }
