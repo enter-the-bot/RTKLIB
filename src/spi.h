@@ -8,8 +8,8 @@ struct spi_s
 {
    int fd;
    uint16_t mode;
-   struct ring_buffer_s *inputb;
-   struct ring_buffer_s *outputb;
+   struct ringbuffer_s *inputb;
+   struct ringbuffer_s *outputb;
 };
 
 typedef struct spi_s spi_t;

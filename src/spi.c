@@ -122,21 +122,3 @@ void closespi (spi_t *device)
         perror("close: ");
     }
 }
-
-static int buffer_init(struct buffer_s *buffer, uint32_t count) 
-{
-    int rc;
-
-    buf
-}
-
-static int buffer_fill(struct buffer_s *buffer, uint8_t *data, uint32_t count)
-{
-
-}
-
-static int buffer_empty(struct buffer_s *buffer)
-{
-
-}
-
