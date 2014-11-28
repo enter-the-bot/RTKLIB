@@ -70,7 +70,7 @@ int  writespi (spi_t *device, unsigned char *buff, int n, char *msg)
     }
 
     transaction.tx_buf = (unsigned long) buff;
-    transaction.rx_buf = (unsigned long) io_buffer;
+    transaction.rx_buf = (unsigned long) NULL;
     transaction.len = n;
     transaction.speed_hz = 245000;
     transaction.bits_per_word = 8;
