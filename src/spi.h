@@ -2,11 +2,14 @@
 #define __SPI_H__
 
 #include <stdint.h>
+#include "ringbuffer.h"
 
 struct spi_s
 {
-   int fd;   
+   int fd;
    uint16_t mode;
+   struct ring_buffer_s *inputb;
+   struct ring_buffer_s *outputb;
 };
 
 typedef struct spi_s spi_t;

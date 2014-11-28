@@ -16,6 +16,8 @@
 #define debug(fmt, args ...)
 #endif
 
+#define BUFFER_LENGTH 100
+
 spi_t *openspi(const char *path, int mode, char *msg)
 {
     spi_t *device;
@@ -54,12 +56,16 @@ errout_with_free:
     return NULL;
 }
 
+
 int  writespi (spi_t *device, unsigned char *buff, int n, char *msg)
 {
     int rc;
 	struct spi_ioc_transfer transaction = {0};
 
-    n = 100;
+    if (n < BUFFER_LENGTH) {
+        n = BUFFER_LENGTH;
+    }
+
 	transaction.tx_buf = (unsigned long) buff;
 	transaction.rx_buf = (unsigned long) NULL;
 	transaction.len = n;
@@ -81,7 +87,10 @@ int  readspi  (spi_t *device, unsigned char *buff, int n, char *msg)
     int rc;
 	struct spi_ioc_transfer transaction = {0};
 
-    n = 100;
+    if (n < BUFFER_LENGTH) {
+        n = BUFFER_LENGTH;
+    }
+
 	transaction.tx_buf = (unsigned long) NULL;
 	transaction.rx_buf = (unsigned long) buff;
 	transaction.len = n;
@@ -113,3 +122,21 @@ void closespi (spi_t *device)
         perror("close: ");
     }
 }
+
+static int buffer_init(struct buffer_s *buffer, uint32_t count) 
+{
+    int rc;
+
+    buf
+}
+
+static int buffer_fill(struct buffer_s *buffer, uint8_t *data, uint32_t count)
+{
+
+}
+
+static int buffer_empty(struct buffer_s *buffer)
+{
+
+}
+
