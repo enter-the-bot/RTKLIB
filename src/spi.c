@@ -62,7 +62,7 @@ int  writespi (spi_t *device, unsigned char *buff, int n, char *msg)
     int rc;
 	struct spi_ioc_transfer transaction = {0};
 
-    if (n < BUFFER_LENGTH) {
+    if (n > BUFFER_LENGTH) {
         n = BUFFER_LENGTH;
     }
 
@@ -87,7 +87,7 @@ int  readspi  (spi_t *device, unsigned char *buff, int n, char *msg)
     int rc;
 	struct spi_ioc_transfer transaction = {0};
 
-    if (n < BUFFER_LENGTH) {
+    if (n > BUFFER_LENGTH) {
         n = BUFFER_LENGTH;
     }
 
