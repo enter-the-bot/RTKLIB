@@ -22,7 +22,7 @@ spi_t *openspi(const char *path, int mode, char *msg)
 {
     spi_t *device;
     int flags;
-    
+
     device = malloc(sizeof(spi_t));
 
     if (device == NULL) {
@@ -39,7 +39,7 @@ spi_t *openspi(const char *path, int mode, char *msg)
         flags = O_WRONLY;
     }
 
-    device->fd = open(path, flags);            
+    device->fd = open(path, flags);
 
     if (device->fd < 0) {
         perror("open: ");
@@ -57,20 +57,27 @@ errout_with_free:
 }
 
 
+static const uint8_t io_buffer[BUFFER_LENGTH];
+
 int  writespi (spi_t *device, unsigned char *buff, int n, char *msg)
 {
     int rc;
-	struct spi_ioc_transfer transaction = {0};
+    int i;
+    struct spi_ioc_transfer transaction = {0};
 
     if (n > BUFFER_LENGTH) {
         n = BUFFER_LENGTH;
     }
 
-	transaction.tx_buf = (unsigned long) buff;
-	transaction.rx_buf = (unsigned long) NULL;
-	transaction.len = n;
-	transaction.speed_hz = 245000;
-	transaction.bits_per_word = 8;
+    transaction.tx_buf = (unsigned long) buff;
+    transaction.rx_buf = (unsigned long) io_buffer;
+    transaction.len = n;
+    transaction.speed_hz = 245000;
+    transaction.bits_per_word = 8;
+
+    for (i = 0; i < BUFFER_LENGTH; i++) {
+        fprintf(stderr, "0x%x", io_buffer[i]);
+    }
 
     rc = ioctl(device->fd, SPI_IOC_MESSAGE(1), &transaction);
     if (rc < 0) {
@@ -78,24 +85,24 @@ int  writespi (spi_t *device, unsigned char *buff, int n, char *msg)
         perror("ioctl: ");
         return 0;
     }
-    
+
     return n;
 }
 
 int  readspi  (spi_t *device, unsigned char *buff, int n, char *msg)
 {
     int rc;
-	struct spi_ioc_transfer transaction = {0};
+    struct spi_ioc_transfer transaction = {0};
 
     if (n > BUFFER_LENGTH) {
         n = BUFFER_LENGTH;
     }
 
-	transaction.tx_buf = (unsigned long) NULL;
-	transaction.rx_buf = (unsigned long) buff;
-	transaction.len = n;
-	transaction.speed_hz = 245000;
-	transaction.bits_per_word = 8;
+    transaction.tx_buf = (unsigned long) NULL;
+    transaction.rx_buf = (unsigned long) buff;
+    transaction.len = n;
+    transaction.speed_hz = 245000;
+    transaction.bits_per_word = 8;
 
     rc = ioctl(device->fd, SPI_IOC_MESSAGE(1), &transaction);
     if (rc < 0) {
