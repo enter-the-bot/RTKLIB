@@ -16,7 +16,7 @@
 #define debug(fmt, args ...)
 #endif
 
-#define BUFFER_LENGTH 100
+#define BUFFER_LENGTH 300
 
 spi_t *openspi(const char *path, int mode, char *msg)
 {
@@ -74,10 +74,6 @@ int  writespi (spi_t *device, unsigned char *buff, int n, char *msg)
     transaction.len = n;
     transaction.speed_hz = 245000;
     transaction.bits_per_word = 8;
-
-    for (i = 0; i < BUFFER_LENGTH; i++) {
-        fprintf(stderr, "0x%x", io_buffer[i]);
-    }
 
     rc = ioctl(device->fd, SPI_IOC_MESSAGE(1), &transaction);
     if (rc < 0) {
