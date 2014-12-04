@@ -211,7 +211,7 @@ void uart_close(struct port_dev_s *port)
 #else
     close(serial->dev);
 #endif
-    free(serial);
+    free(device);
 }
 /* read serial ---------------------------------------------------------------*/
 int uart_read(struct port_dev_s *port, unsigned char *buff, int n, char *msg)
