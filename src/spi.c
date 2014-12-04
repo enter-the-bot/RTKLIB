@@ -44,11 +44,11 @@ struct port_dev_s *spi_initialize()
     port = malloc(sizeof(struct spi_dev_s));
     assert(port != NULL);
 
-    port->port.ops->open =  spi_open;
-    port->port.ops->write = spi_write;
-    port->port.ops->read  = spi_read;
-    port->port.ops->state = spi_state;
-    port->port.ops->close = spi_close;
+    port->port.ops.open =  spi_open;
+    port->port.ops.write = spi_write;
+    port->port.ops.read  = spi_read;
+    port->port.ops.state = spi_state;
+    port->port.ops.close = spi_close;
 
     return (struct port_dev_s *) port;
 }

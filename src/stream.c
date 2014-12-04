@@ -43,6 +43,7 @@
 *           2014/06/21 1.14 add general hex message rcv command by !HEX ...
 *-----------------------------------------------------------------------------*/
 #include <ctype.h>
+#include <assert.h>
 #include "rtklib.h"
 #ifndef WIN32
 #include <fcntl.h>
@@ -1834,10 +1835,14 @@ extern int stropen(stream_t *stream, int type, int mode, const char *path)
     stream->port = NULL;
    
     switch (type) {
+        case STR_SERIAL:
+            stream->port = uart_initialize(); 
+            break;
         case STR_SPI:
             stream->port = spi_initialize(); 
             break;
         default:
+            fprintf(stderr,"stropen: type=%d mode=%d path=%s\n",type,mode,path);
             stream->state = 0;
             tracet(3,"stropen: type=%d mode=%d path=%s\n",type,mode,path);
             return 1;
@@ -1922,6 +1927,7 @@ extern int strread(stream_t *stream, unsigned char *buff, int n)
     strlock(stream);
     
     port = stream->port;
+    assert(port != NULL);
     nr = port_read(port, buff, n, msg);
 
     stream->inb+=nr;
@@ -1959,6 +1965,7 @@ extern int strwrite(stream_t *stream, unsigned char *buff, int n)
     strlock(stream);
 
     port = stream->port;
+    assert(port != NULL);
     ns = port_write(port, buff, n, msg);
     
     stream->outb += ns;
