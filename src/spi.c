@@ -31,6 +31,7 @@ struct spi_dev_s;
    uint32_t speed;
 };
 
+static int  spi_open  (struct port_dev_s *port, const char *path, int mode, char *msg)
 static int  spi_write (struct port_dev_s *device, unsigned char *buff, int n, char *msg);
 static int  spi_read  (struct port_dev_s *device, unsigned char *buff, int n, char *msg);
 static int  spi_state (struct port_dev_s *device);
@@ -94,9 +95,10 @@ static int spi_parse_path(const char *path, char *device_path, uint32_t *speed, 
     return 1;
 }
 
-spi_t *spi_open(struct port_dev_s *port, const char *path, int mode, char *msg)
+int spi_open(struct port_dev_s *port, const char *path, int mode, char *msg)
 {
     struct spi_dev_s *device = (struct spi_dev_s *) port;
+
     int flags = O_RDWR;
     uint32_t speed = 0;
     uint16_t spi_mode = SPI_MODE_0;
@@ -119,18 +121,17 @@ spi_t *spi_open(struct port_dev_s *port, const char *path, int mode, char *msg)
 
     if (device->fd < 0) {
         perror("open: ");
-        goto errout_with_free;
+        goto errout;
     }
 
     /* hardcoded spi mode for Ublox */
     device->mode = mode;
     device->speed = speed;
 
-    return device;
+    return 1;
 
 errout_with_free:
-    free(device);
-    return NULL;
+    return 0;
 }
 
 
@@ -190,13 +191,13 @@ int spi_write(struct port_dev_s *port, unsigned char *buff, int n, char *msg)
     return n;
 }
 
-int statespi (struct port_dev_s *device)
+int spi_state (struct port_dev_s *device)
 {
     struct spi_dev_s *device = (struct spi_dev_s *) port;
     return 3;
 }
 
-void closespi (struct port_dev_s *device)
+void spi_close (struct port_dev_s *device)
 {
     int rc;
 

@@ -1,10 +1,12 @@
 #ifndef __PORT_H__
 #define __PORT_H__
 
+#define port_open(port, path, mode, msg) port->ops->open(port, path, mode, msg)
+
 struct port_dev_s;
 struct port_ops_s
 {
-    int  (*open)(char *path, int mode, char *msg);
+    int  (*open)(struct port_dev_s *device, const char *path, int mode, char *msg);
     int  (*write)(struct port_dev_s *device, const unsigned char *buff, int n, char *msg);
     int  (*read)(struct port_dev_s *device, unsigned char *buff, int n, char *msg);
     int  (*state)(struct port_dev_s *device);

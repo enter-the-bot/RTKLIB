@@ -34,6 +34,8 @@
 #include <math.h>
 #include <time.h>
 #include <ctype.h>
+
+#include "port.h"
 #ifdef WIN32
 #include <winsock2.h>
 #include <windows.h>
@@ -1168,7 +1170,7 @@ typedef struct {        /* stream type */
     unsigned int tick,tact; /* tick/active tick */
     unsigned int inbt,outbt; /* input/output bytes at tick */
     lock_t lock;        /* lock flag */
-    void *port;         /* type dependent port control struct */
+    struct port_dev_s *port;         /* type dependent port control struct */
     char path[MAXSTRPATH]; /* stream path */
     char msg [MAXSTRMSG];  /* stream message */
 } stream_t;

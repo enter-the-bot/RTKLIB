@@ -1831,6 +1831,12 @@ extern int stropen(stream_t *stream, int type, int mode, const char *path)
     stream->tick=tickget();
     stream->inbt=stream->outbt=0;
     stream->msg[0]='\0';
+   
+    stream->port = spi_initialize(); 
+
+    port_open(stream->port,path, mode, stream->msg);
+
+    /*
     stream->port=NULL;
     switch (type) {
         case STR_SERIAL  : stream->port=openserial(path,mode,stream->msg); break;
@@ -1844,6 +1850,7 @@ extern int stropen(stream_t *stream, int type, int mode, const char *path)
         case STR_SPI     : stream->port=openspi   (path, mode,  stream->msg); break;
         default: stream->state=0; return 1;
     }
+    */
     stream->state=!stream->port?-1:1;
     return stream->port!=NULL;
 }

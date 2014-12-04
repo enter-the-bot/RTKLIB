@@ -5,6 +5,7 @@
 
 #include "port.h"
 
-struct port_dev_s *openspi(const char *path, int mode, char *msg);
+struct port_dev_s *spi_initialize();
+void spi_deinitialize(struct port_dev_s *port);
 
 #endif
