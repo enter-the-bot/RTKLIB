@@ -1923,6 +1923,9 @@ extern int strread(stream_t *stream, unsigned char *buff, int n)
     
     strlock(stream);
     
+    struct port_dev_s* port = stream->port;
+    nr = port->ops->read(port, buff, n, msg);
+
     switch (stream->type) {
         case STR_SERIAL  : nr=readserial((serial_t *)stream->port,buff,n,msg); break;
         case STR_FILE    : nr=readfile  ((file_t   *)stream->port,buff,n,msg); break;

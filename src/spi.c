@@ -23,6 +23,34 @@
 #define BUFFER_LENGTH 300
 #define SPI_DEFAULT_SPEED 245000
 
+struct spi_dev_s;
+{
+   struct port_dev_s port;
+   int fd;
+   uint16_t mode;
+   uint32_t speed;
+};
+
+static int  spi_write (struct port_dev_s *device, unsigned char *buff, int n, char *msg);
+static int  spi_read  (struct port_dev_s *device, unsigned char *buff, int n, char *msg);
+static int  spi_state (struct port_dev_s *device);
+static void spi_close (struct port_dev_s *device);
+
+struct port_dev_s *spi_initialize()
+{
+    struct spi_dev_s; *device = malloc(sizeof(struct spi_dev_s;));
+    device->port->ops->write = spi_write;
+    device->port->ops->read  = spi_read;
+    device->port->ops->state = spi_state;
+    device->port->ops->close = spi_close;
+}
+
+void spi_deinitialize(struct port_dev_s *port)
+{
+    struct spi_s *device = port;
+    free(device);
+}
+
 static int spi_parse_path(const char *path, char *device_path, uint32_t *speed, uint16_t *mode)
 {
     char *p;
@@ -66,22 +94,15 @@ static int spi_parse_path(const char *path, char *device_path, uint32_t *speed, 
     return 1;
 }
 
-spi_t *openspi(const char *path, int mode, char *msg)
+spi_t *spi_open(struct port_dev_s *port, const char *path, int mode, char *msg)
 {
-    spi_t *device;
+    struct spi_dev_s *device = (struct spi_dev_s *) port;
     int flags = O_RDWR;
     uint32_t speed = 0;
     uint16_t spi_mode = SPI_MODE_0;
     char device_path[PATH_MAX];
 
     if (!spi_parse_path(path, device_path, &speed, &spi_mode)) {
-        return NULL;
-    }
-
-    device = malloc(sizeof(spi_t));
-
-    if (device == NULL) {
-        perror("malloc: ");
         return NULL;
     }
 
@@ -115,10 +136,12 @@ errout_with_free:
 
 static const uint8_t io_buffer[BUFFER_LENGTH];
 
-int  writespi (spi_t *device, unsigned char *buff, int n, char *msg)
+int  spi_write (struct port_dev_s *port, unsigned char *buff, int n, char *msg)
 {
     int rc;
     struct spi_ioc_transfer transaction = {0};
+
+    struct spi_dev_s *device = (struct spi_dev_s *) port;
 
     if (n > BUFFER_LENGTH) {
         n = BUFFER_LENGTH;
@@ -140,10 +163,12 @@ int  writespi (spi_t *device, unsigned char *buff, int n, char *msg)
     return n;
 }
 
-int  readspi  (spi_t *device, unsigned char *buff, int n, char *msg)
+int spi_write(struct port_dev_s *port, unsigned char *buff, int n, char *msg)
 {
     int rc;
     struct spi_ioc_transfer transaction = {0};
+
+    struct spi_dev_s *device = (struct spi_dev_s *) port;
 
     if (n > BUFFER_LENGTH) {
         n = BUFFER_LENGTH;
@@ -165,14 +190,17 @@ int  readspi  (spi_t *device, unsigned char *buff, int n, char *msg)
     return n;
 }
 
-int  statespi (spi_t *device)
+int statespi (struct port_dev_s *device)
 {
+    struct spi_dev_s *device = (struct spi_dev_s *) port;
     return 3;
 }
 
-void closespi (spi_t *device)
+void closespi (struct port_dev_s *device)
 {
     int rc;
+
+    struct spi_dev_s *device = (struct spi_dev_s *) port;
 
     rc = close(device->fd);
 
