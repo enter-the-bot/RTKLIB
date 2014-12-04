@@ -60,6 +60,9 @@
 
 #include "rtklib.h"
 #include "spi.h"
+#include "uart.h"
+#include "file.h"
+
 static const char rcsid[]="$Id$";
 
 /* constants -----------------------------------------------------------------*/
