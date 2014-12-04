@@ -1831,26 +1831,17 @@ extern int stropen(stream_t *stream, int type, int mode, const char *path)
     stream->tick=tickget();
     stream->inbt=stream->outbt=0;
     stream->msg[0]='\0';
+    stream->port = NULL;
    
+    if (type == 0) {
+        return 1;
+    }
+
     stream->port = spi_initialize(); 
 
+    fprintf(stderr, "type: %d path: %s\n",type, path);
     port_open(stream->port,path, mode, stream->msg);
 
-    /*
-    stream->port=NULL;
-    switch (type) {
-        case STR_SERIAL  : stream->port=openserial(path,mode,stream->msg); break;
-        case STR_FILE    : stream->port=openfile  (path,mode,stream->msg); break;
-        case STR_TCPSVR  : stream->port=opentcpsvr(path,     stream->msg); break;
-        case STR_TCPCLI  : stream->port=opentcpcli(path,     stream->msg); break;
-        case STR_NTRIPSVR: stream->port=openntrip (path,0,   stream->msg); break;
-        case STR_NTRIPCLI: stream->port=openntrip (path,1,   stream->msg); break;
-        case STR_FTP     : stream->port=openftp   (path,0,   stream->msg); break;
-        case STR_HTTP    : stream->port=openftp   (path,1,   stream->msg); break;
-        case STR_SPI     : stream->port=openspi   (path, mode,  stream->msg); break;
-        default: stream->state=0; return 1;
-    }
-    */
     stream->state=!stream->port?-1:1;
     return stream->port!=NULL;
 }
@@ -1861,20 +1852,13 @@ extern int stropen(stream_t *stream, int type, int mode, const char *path)
 *-----------------------------------------------------------------------------*/
 extern void strclose(stream_t *stream)
 {
+    struct port_dev_s *port;
     tracet(3,"strclose: type=%d mode=%d\n",stream->type,stream->mode);
     
-    if (stream->port) {
-        switch (stream->type) {
-            case STR_SERIAL  : closeserial((serial_t *)stream->port); break;
-            case STR_FILE    : closefile  ((file_t   *)stream->port); break;
-            case STR_TCPSVR  : closetcpsvr((tcpsvr_t *)stream->port); break;
-            case STR_TCPCLI  : closetcpcli((tcpcli_t *)stream->port); break;
-            case STR_NTRIPSVR: closentrip ((ntrip_t  *)stream->port); break;
-            case STR_NTRIPCLI: closentrip ((ntrip_t  *)stream->port); break;
-            case STR_FTP     : closeftp   ((ftp_t    *)stream->port); break;
-            case STR_HTTP    : closeftp   ((ftp_t    *)stream->port); break;
-            case STR_SPI     : closespi   ((spi_t    *)stream->port); break;
-        }
+    port = stream->port;
+
+    if (port) {
+        port_close(port);
     }
     else {
         trace(2,"no port to close stream: type=%d\n",stream->type);
@@ -1920,6 +1904,7 @@ extern void strunlock(stream_t *stream) {unlock(&stream->lock);}
 *-----------------------------------------------------------------------------*/
 extern int strread(stream_t *stream, unsigned char *buff, int n)
 {
+    struct port_dev_s *port;
     unsigned int tick;
     char *msg=stream->msg;
     int nr;
@@ -1930,9 +1915,10 @@ extern int strread(stream_t *stream, unsigned char *buff, int n)
     
     strlock(stream);
     
-    struct port_dev_s* port = stream->port;
-    nr = port->ops->read(port, buff, n, msg);
+    port = stream->port;
+    nr = port_read(port, buff, n, msg);
 
+    /*
     switch (stream->type) {
         case STR_SERIAL  : nr=readserial((serial_t *)stream->port,buff,n,msg); break;
         case STR_FILE    : nr=readfile  ((file_t   *)stream->port,buff,n,msg); break;
@@ -1946,6 +1932,7 @@ extern int strread(stream_t *stream, unsigned char *buff, int n)
             strunlock(stream);
             return 0;
     }
+    */
     stream->inb+=nr;
     tick=tickget(); if (nr>0) stream->tact=tick;
     
@@ -1966,6 +1953,7 @@ extern int strread(stream_t *stream, unsigned char *buff, int n)
 *-----------------------------------------------------------------------------*/
 extern int strwrite(stream_t *stream, unsigned char *buff, int n)
 {
+    struct port_dev_s *port;
     unsigned int tick;
     char *msg=stream->msg;
     int ns;
@@ -1975,21 +1963,10 @@ extern int strwrite(stream_t *stream, unsigned char *buff, int n)
     if (!(stream->mode&STR_MODE_W)||!stream->port) return 0;
     
     strlock(stream);
+
+    port = stream->port;
+    ns = port_write(port, buff, n, msg);
     
-    switch (stream->type) {
-        case STR_SERIAL  : ns=writeserial((serial_t *)stream->port,buff,n,msg); break;
-        case STR_FILE    : ns=writefile  ((file_t   *)stream->port,buff,n,msg); break;
-        case STR_TCPSVR  : ns=writetcpsvr((tcpsvr_t *)stream->port,buff,n,msg); break;
-        case STR_TCPCLI  : ns=writetcpcli((tcpcli_t *)stream->port,buff,n,msg); break;
-        case STR_NTRIPCLI:
-        case STR_NTRIPSVR: ns=writentrip ((ntrip_t  *)stream->port,buff,n,msg); break;
-        case STR_FTP     :
-        case STR_HTTP    :
-        case STR_SPI     : ns=writespi   ((spi_t    *)stream->port,buff,n,msg); break;
-        default:
-            strunlock(stream);
-            return 0;
-    }
     stream->outb+=ns;
     tick=tickget(); if (ns>0) stream->tact=tick;
     
@@ -2009,31 +1986,24 @@ extern int strwrite(stream_t *stream, unsigned char *buff, int n)
 extern int strstat(stream_t *stream, char *msg)
 {
     int state;
+    struct port_dev_s *port;
     
     tracet(4,"strstat:\n");
     
     strlock(stream);
+
     if (msg) {
         strncpy(msg,stream->msg,MAXSTRMSG-1); msg[MAXSTRMSG-1]='\0';
     }
+
     if (!stream->port) {
         strunlock(stream);
         return stream->state;
     }
-    switch (stream->type) {
-        case STR_SERIAL  : state=stateserial((serial_t *)stream->port); break;
-        case STR_FILE    : state=statefile  ((file_t   *)stream->port); break;
-        case STR_TCPSVR  : state=statetcpsvr((tcpsvr_t *)stream->port); break;
-        case STR_TCPCLI  : state=statetcpcli((tcpcli_t *)stream->port); break;
-        case STR_NTRIPSVR:
-        case STR_NTRIPCLI: state=statentrip ((ntrip_t  *)stream->port); break;
-        case STR_FTP     : state=stateftp   ((ftp_t    *)stream->port); break;
-        case STR_HTTP    : state=stateftp   ((ftp_t    *)stream->port); break;
-        case STR_SPI     : state=statespi   ((spi_t    *)stream->port); break;
-        default:
-            strunlock(stream);
-            return 0;
-    }
+
+    port = stream->port;
+    state = port_state(port);
+    
     if (state==2&&(int)(tickget()-stream->tact)<=TINTACT) state=3;
     strunlock(stream);
     return state;

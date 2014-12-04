@@ -2,6 +2,10 @@
 #define __PORT_H__
 
 #define port_open(port, path, mode, msg) port->ops->open(port, path, mode, msg)
+#define port_read(port, buff, n, msg) port->ops->read(port, buff, n, msg)
+#define port_write(port, buff, n, msg) port->ops->write(port, buff, n, msg)
+#define port_state(port) port->ops->state(port)
+#define port_close(port) port->ops->close(port)
 
 struct port_dev_s;
 struct port_ops_s

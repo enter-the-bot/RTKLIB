@@ -20,10 +20,10 @@
 #define debug(fmt, args ...)
 #endif
 
-#define BUFFER_LENGTH 300
+#define BUFFER_LENGTH 200
 #define SPI_DEFAULT_SPEED 245000
 
-struct spi_dev_s;
+struct spi_dev_s
 {
    struct port_dev_s port;
    int fd;
@@ -31,24 +31,33 @@ struct spi_dev_s;
    uint32_t speed;
 };
 
-static int  spi_open  (struct port_dev_s *port, const char *path, int mode, char *msg)
-static int  spi_write (struct port_dev_s *device, unsigned char *buff, int n, char *msg);
+static int  spi_open  (struct port_dev_s *port, const char *path, int mode, char *msg);
+static int  spi_write (struct port_dev_s *device, const unsigned char *buff, int n, char *msg);
 static int  spi_read  (struct port_dev_s *device, unsigned char *buff, int n, char *msg);
 static int  spi_state (struct port_dev_s *device);
 static void spi_close (struct port_dev_s *device);
 
 struct port_dev_s *spi_initialize()
 {
-    struct spi_dev_s; *device = malloc(sizeof(struct spi_dev_s;));
-    device->port->ops->write = spi_write;
-    device->port->ops->read  = spi_read;
-    device->port->ops->state = spi_state;
-    device->port->ops->close = spi_close;
+    struct spi_dev_s *port;
+
+    port = malloc(sizeof(struct spi_dev_s));
+    assert(port != NULL);
+
+    port->port.ops->open =  spi_open;
+    port->port.ops->write = spi_write;
+    port->port.ops->read  = spi_read;
+    port->port.ops->state = spi_state;
+    port->port.ops->close = spi_close;
+
+    return (struct port_dev_s *) port;
 }
 
 void spi_deinitialize(struct port_dev_s *port)
 {
-    struct spi_s *device = port;
+    struct spi_dev_s *device;
+    device = (struct spi_dev_s *) port;
+
     free(device);
 }
 
@@ -105,7 +114,7 @@ int spi_open(struct port_dev_s *port, const char *path, int mode, char *msg)
     char device_path[PATH_MAX];
 
     if (!spi_parse_path(path, device_path, &speed, &spi_mode)) {
-        return NULL;
+        return 0;
     }
 
     if ((mode & STR_MODE_R) &&
@@ -117,6 +126,7 @@ int spi_open(struct port_dev_s *port, const char *path, int mode, char *msg)
         flags = O_WRONLY;
     }
 
+    debug("%s", device_path);
     device->fd = open(device_path, flags);
 
     if (device->fd < 0) {
@@ -130,14 +140,14 @@ int spi_open(struct port_dev_s *port, const char *path, int mode, char *msg)
 
     return 1;
 
-errout_with_free:
+errout:
     return 0;
 }
 
 
 static const uint8_t io_buffer[BUFFER_LENGTH];
 
-int  spi_write (struct port_dev_s *port, unsigned char *buff, int n, char *msg)
+int  spi_write (struct port_dev_s *port, const unsigned char *buff, int n, char *msg)
 {
     int rc;
     struct spi_ioc_transfer transaction = {0};
@@ -164,9 +174,10 @@ int  spi_write (struct port_dev_s *port, unsigned char *buff, int n, char *msg)
     return n;
 }
 
-int spi_write(struct port_dev_s *port, unsigned char *buff, int n, char *msg)
+int spi_read(struct port_dev_s *port, unsigned char *buff, int n, char *msg)
 {
     int rc;
+    int i;
     struct spi_ioc_transfer transaction = {0};
 
     struct spi_dev_s *device = (struct spi_dev_s *) port;
@@ -188,16 +199,21 @@ int spi_write(struct port_dev_s *port, unsigned char *buff, int n, char *msg)
         return 0;
     }
 
+    for (i = 0; i < n; i++) {
+        fprintf(stderr, "0x%x ", buff[i]);
+    }
+    fprintf(stderr, "\n");
+
     return n;
 }
 
-int spi_state (struct port_dev_s *device)
+int spi_state (struct port_dev_s *port)
 {
     struct spi_dev_s *device = (struct spi_dev_s *) port;
     return 3;
 }
 
-void spi_close (struct port_dev_s *device)
+void spi_close (struct port_dev_s *port)
 {
     int rc;
 
