@@ -44,7 +44,6 @@
 *-----------------------------------------------------------------------------*/
 #include <ctype.h>
 #include <assert.h>
-#include "rtklib.h"
 #ifndef WIN32
 #include <fcntl.h>
 #include <unistd.h>
@@ -52,7 +51,6 @@
 #include <sys/time.h>
 #define __USE_MISC
 #include <errno.h>
-#include <termios.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
@@ -60,6 +58,7 @@
 #include <netdb.h>
 #endif
 
+#include "rtklib.h"
 #include "spi.h"
 static const char rcsid[]="$Id$";
 
@@ -89,28 +88,14 @@ static const char rcsid[]="$Id$";
 /* macros --------------------------------------------------------------------*/
 
 #ifdef WIN32
-#define dev_t               HANDLE
 #define socket_t            SOCKET
 typedef int socklen_t;
 #else
-#define dev_t               int
 #define socket_t            int
 #define closesocket         close
 #endif
 
 /* type definition -----------------------------------------------------------*/
-
-typedef struct {            /* serial control type */
-    dev_t dev;              /* serial device */
-    int error;              /* error state */
-#ifdef WIN32
-    int state,wp,rp;        /* state,write/read pointer */
-    int buffsize;           /* write buffer size (bytes) */
-    HANDLE thread;          /* write thread */
-    lock_t lock;            /* lock flag */
-    unsigned char *buff;    /* write buffer */
-#endif
-} serial_t;
 
 typedef struct {            /* file control type */
     FILE *fp;               /* file pointer */
@@ -195,249 +180,6 @@ static char proxyaddr[256]=""; /* http/ntrip/ftp proxy address */
 static unsigned int tick_master=0; /* time tick master for replay */
 static int fswapmargin=30;  /* file swap margin (s) */
 
-/* read/write serial buffer --------------------------------------------------*/
-#ifdef WIN32
-static int readseribuff(serial_t *serial, unsigned char *buff, int nmax)
-{
-    int ns;
-    
-    tracet(5,"readseribuff: dev=%d\n",serial->dev);
-    
-    lock(&serial->lock);
-    for (ns=0;serial->rp!=serial->wp&&ns<nmax;ns++) {
-       buff[ns]=serial->buff[serial->rp];
-       if (++serial->rp>=serial->buffsize) serial->rp=0;
-    }
-    unlock(&serial->lock);
-    tracet(5,"readseribuff: ns=%d rp=%d wp=%d\n",ns,serial->rp,serial->wp);
-    return ns;
-}
-static int writeseribuff(serial_t *serial, unsigned char *buff, int n)
-{
-    int ns,wp;
-    
-    tracet(5,"writeseribuff: dev=%d n=%d\n",serial->dev,n);
-    
-    lock(&serial->lock);
-    for (ns=0;ns<n;ns++) {
-        serial->buff[wp=serial->wp]=buff[ns];
-        if (++wp>=serial->buffsize) wp=0;
-        if (wp!=serial->rp) serial->wp=wp;
-        else {
-            tracet(2,"serial buffer overflow: size=%d\n",serial->buffsize);
-            break;
-        }
-    }
-    unlock(&serial->lock);
-    tracet(5,"writeseribuff: ns=%d rp=%d wp=%d\n",ns,serial->rp,serial->wp);
-    return ns;
-}
-#endif /* WIN32 */
-
-/* write serial thread -------------------------------------------------------*/
-#ifdef WIN32
-static DWORD WINAPI serialthread(void *arg)
-{
-    serial_t *serial=(serial_t *)arg;
-    unsigned char buff[128];
-    unsigned int tick;
-    DWORD ns;
-    int n;
-    
-    tracet(3,"serialthread:\n");
-    
-    serial->state=1;
-    
-    for (;;) {
-        tick=tickget();
-        while ((n=readseribuff(serial,buff,sizeof(buff)))>0) {
-            if (!WriteFile(serial->dev,buff,n,&ns,NULL)) serial->error=1;
-        }
-        if (!serial->state) break;
-        sleepms(10-(int)(tickget()-tick)); /* cycle=10ms */
-    }
-    free(serial->buff);
-    return 0;
-}
-#endif /* WIN32 */
-
-/* open serial ---------------------------------------------------------------*/
-static serial_t *openserial(const char *path, int mode, char *msg)
-{
-    const int br[]={
-        300,600,1200,2400,4800,9600,19200,38400,57600,115200,230400
-    };
-    serial_t *serial;
-    int i,brate=9600,bsize=8,stopb=1;
-    char *p,parity='N',dev[128],port[128],fctr[64]="";
-#ifdef WIN32
-    DWORD error,rw=0,siz=sizeof(COMMCONFIG);
-    COMMCONFIG cc={0};
-    COMMTIMEOUTS co={MAXDWORD,0,0,0,0}; /* non-block-read */
-    char dcb[64]="";
-#else
-    const speed_t bs[]={
-        B300,B600,B1200,B2400,B4800,B9600,B19200,B38400,B57600,B115200,B230400
-    };
-    struct termios ios={0};
-    int rw=0;
-#endif
-    tracet(3,"openserial: path=%s mode=%d\n",path,mode);
-    
-    if (!(serial=(serial_t *)malloc(sizeof(serial_t)))) return NULL;
-    
-    if ((p=strchr(path,':'))) {
-        strncpy(port,path,p-path); port[p-path]='\0';
-        sscanf(p,":%d:%d:%c:%d:%s",&brate,&bsize,&parity,&stopb,fctr);
-    }
-    else strcpy(port,path);
-    
-    for (i=0;i<11;i++) if (br[i]==brate) break;
-    if (i>=12) {
-        sprintf(msg,"bitrate error (%d)",brate);
-        tracet(1,"openserial: %s path=%s\n",msg,path);
-        free(serial);
-        return NULL;
-    }
-    parity=(char)toupper((int)parity);
-    
-#ifdef WIN32
-    sprintf(dev,"\\\\.\\%s",port);
-    if (mode&STR_MODE_R) rw|=GENERIC_READ;
-    if (mode&STR_MODE_W) rw|=GENERIC_WRITE;
-    
-    serial->dev=CreateFile(dev,rw,0,0,OPEN_EXISTING,0,NULL);
-    if (serial->dev==INVALID_HANDLE_VALUE) {
-        sprintf(msg,"device open error (%d)",(int)GetLastError());
-        tracet(1,"openserial: %s path=%s\n",msg,path);
-        free(serial);
-        return NULL;
-    }
-    if (!GetDefaultCommConfig(port,&cc,&siz)) {
-        sprintf(msg,"getconfig error (%d)",(int)GetLastError());
-        tracet(1,"openserial: %s\n",msg);
-        CloseHandle(serial->dev);
-        free(serial);
-        return NULL;
-    }
-    sprintf(dcb,"baud=%d parity=%c data=%d stop=%d",brate,parity,bsize,stopb);
-    if (!BuildCommDCB(dcb,&cc.dcb)) {
-        sprintf(msg,"buiddcb error (%d)",(int)GetLastError());
-        tracet(1,"openserial: %s\n",msg);
-        CloseHandle(serial->dev);
-        free(serial);
-        return NULL;
-    }
-    if (!strcmp(fctr,"rts")) {
-        cc.dcb.fRtsControl=RTS_CONTROL_HANDSHAKE;
-    }
-    SetCommConfig(serial->dev,&cc,siz); /* ignore error to support novatel */
-    SetCommTimeouts(serial->dev,&co);
-    ClearCommError(serial->dev,&error,NULL);
-    PurgeComm(serial->dev,PURGE_TXABORT|PURGE_RXABORT|PURGE_TXCLEAR|PURGE_RXCLEAR);
-    
-    /* create write thread */
-    initlock(&serial->lock);
-    serial->state=serial->wp=serial->rp=serial->error=0;
-    serial->buffsize=buffsize;
-    if (!(serial->buff=(unsigned char *)malloc(buffsize))) {
-        CloseHandle(serial->dev);
-        free(serial);
-        return NULL;
-    }
-    if (!(serial->thread=CreateThread(NULL,0,serialthread,serial,0,NULL))) {
-        sprintf(msg,"serial thread error (%d)",(int)GetLastError());
-        tracet(1,"openserial: %s\n",msg);
-        CloseHandle(serial->dev);
-        free(serial);
-        return NULL;
-    }
-    return serial;
-#else
-    sprintf(dev,"/dev/%s",port);
-    
-    if ((mode&STR_MODE_R)&&(mode&STR_MODE_W)) rw=O_RDWR;
-    else if (mode&STR_MODE_R) rw=O_RDONLY;
-    else if (mode&STR_MODE_W) rw=O_WRONLY;
-    
-    if ((serial->dev=open(dev,rw|O_NOCTTY|O_NONBLOCK))<0) {
-        sprintf(msg,"device open error (%d)",errno);
-        tracet(1,"openserial: %s dev=%s\n",msg,dev);
-        free(serial);
-        return NULL;
-    }
-    tcgetattr(serial->dev,&ios);
-    ios.c_iflag=0;
-    ios.c_oflag=0;
-    ios.c_lflag=0;     /* non-canonical */
-    ios.c_cc[VMIN ]=0; /* non-block-mode */
-    ios.c_cc[VTIME]=0;
-    cfsetospeed(&ios,bs[i]);
-    cfsetispeed(&ios,bs[i]);
-    ios.c_cflag|=bsize==7?CS7:CS8;
-    ios.c_cflag|=parity=='O'?(PARENB|PARODD):(parity=='E'?PARENB:0);
-    ios.c_cflag|=stopb==2?CSTOPB:0;
-    ios.c_cflag|=!strcmp(fctr,"rts")?CRTSCTS:0;
-    tcsetattr(serial->dev,TCSANOW,&ios);
-    tcflush(serial->dev,TCIOFLUSH);
-    return serial;
-#endif
-}
-/* close serial --------------------------------------------------------------*/
-static void closeserial(serial_t *serial)
-{
-    tracet(3,"closeserial: dev=%d\n",serial->dev);
-    
-    if (!serial) return;
-#ifdef WIN32
-    serial->state=0;
-    WaitForSingleObject(serial->thread,10000);
-    CloseHandle(serial->dev);
-    CloseHandle(serial->thread);
-#else
-    close(serial->dev);
-#endif
-    free(serial);
-}
-/* read serial ---------------------------------------------------------------*/
-static int readserial(serial_t *serial, unsigned char *buff, int n, char *msg)
-{
-#ifdef WIN32
-    DWORD nr;
-#else
-    int nr;
-#endif
-    tracet(4,"readserial: dev=%d n=%d\n",serial->dev,n);
-    if (!serial) return 0;
-#ifdef WIN32
-    if (!ReadFile(serial->dev,buff,n,&nr,NULL)) return 0;
-#else
-    if ((nr=read(serial->dev,buff,n))<0) return 0;
-#endif
-    tracet(5,"readserial: exit dev=%d nr=%d\n",serial->dev,nr);
-    return nr;
-}
-/* write serial --------------------------------------------------------------*/
-static int writeserial(serial_t *serial, unsigned char *buff, int n, char *msg)
-{
-    int ns;
-    
-    tracet(3,"writeserial: dev=%d n=%d\n",serial->dev,n);
-    
-    if (!serial) return 0;
-#ifdef WIN32
-    if ((ns=writeseribuff(serial,buff,n))<n) serial->error=1;
-#else
-    if ((ns=write(serial->dev,buff,n))<0) return 0;
-#endif
-    tracet(5,"writeserial: exit dev=%d ns=%d\n",serial->dev,ns);
-    return ns;
-}
-/* get state serial ----------------------------------------------------------*/
-static int stateserial(serial_t *serial)
-{
-    return !serial?0:(serial->error?-1:2);
-}
 /* open file -----------------------------------------------------------------*/
 static int openfile_(file_t *file, gtime_t time, char *msg)
 {    
