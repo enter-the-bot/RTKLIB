@@ -1833,17 +1833,21 @@ extern int stropen(stream_t *stream, int type, int mode, const char *path)
     stream->msg[0]='\0';
     stream->port = NULL;
    
-    if (type == 0) {
-        return 1;
+    switch (type) {
+        case STR_SPI:
+            stream->port = spi_initialize(); 
+            break;
+        default:
+            stream->state = 0;
+            tracet(3,"stropen: type=%d mode=%d path=%s\n",type,mode,path);
+            return 1;
+            break;
     }
 
-    stream->port = spi_initialize(); 
-
-    fprintf(stderr, "type: %d path: %s\n",type, path);
     port_open(stream->port,path, mode, stream->msg);
 
-    stream->state=!stream->port?-1:1;
-    return stream->port!=NULL;
+    stream->state =! stream->port? -1:1;
+    return stream->port != NULL;
 }
 /* close stream ----------------------------------------------------------------
 * close stream
@@ -1857,19 +1861,20 @@ extern void strclose(stream_t *stream)
     
     port = stream->port;
 
-    if (port) {
+    if (port != NULL) {
         port_close(port);
     }
     else {
         trace(2,"no port to close stream: type=%d\n",stream->type);
     }
+
     stream->type=0;
     stream->mode=0;
     stream->state=0;
     stream->inr=stream->outr=0;
     stream->path[0]='\0';
     stream->msg[0]='\0';
-    stream->port=NULL;
+    stream->port = NULL;
 }
 /* sync streams ----------------------------------------------------------------
 * sync time for streams
@@ -1911,35 +1916,23 @@ extern int strread(stream_t *stream, unsigned char *buff, int n)
     
     tracet(4,"strread: n=%d\n",n);
     
-    if (!(stream->mode&STR_MODE_R)||!stream->port) return 0;
+    if (!(stream->mode & STR_MODE_R) || !stream->port) 
+        return 0;
     
     strlock(stream);
     
     port = stream->port;
     nr = port_read(port, buff, n, msg);
 
-    /*
-    switch (stream->type) {
-        case STR_SERIAL  : nr=readserial((serial_t *)stream->port,buff,n,msg); break;
-        case STR_FILE    : nr=readfile  ((file_t   *)stream->port,buff,n,msg); break;
-        case STR_TCPSVR  : nr=readtcpsvr((tcpsvr_t *)stream->port,buff,n,msg); break;
-        case STR_TCPCLI  : nr=readtcpcli((tcpcli_t *)stream->port,buff,n,msg); break;
-        case STR_NTRIPCLI: nr=readntrip ((ntrip_t  *)stream->port,buff,n,msg); break;
-        case STR_FTP     : nr=readftp   ((ftp_t    *)stream->port,buff,n,msg); break;
-        case STR_HTTP    : nr=readftp   ((ftp_t    *)stream->port,buff,n,msg); break;
-        case STR_SPI     : nr=readspi   ((spi_t    *)stream->port,buff,n,msg); break;
-        default:
-            strunlock(stream);
-            return 0;
-    }
-    */
     stream->inb+=nr;
+
     tick=tickget(); if (nr>0) stream->tact=tick;
     
     if ((int)(tick-stream->tick)>=tirate) {
         stream->inr=(stream->inb-stream->inbt)*8000/(tick-stream->tick);
         stream->tick=tick; stream->inbt=stream->inb;
     }
+
     strunlock(stream);
     return nr;
 }
@@ -1960,20 +1953,25 @@ extern int strwrite(stream_t *stream, unsigned char *buff, int n)
     
     tracet(3,"strwrite: n=%d\n",n);
     
-    if (!(stream->mode&STR_MODE_W)||!stream->port) return 0;
+    if (!(stream->mode & STR_MODE_W) || !stream->port) 
+        return 0;
     
     strlock(stream);
 
     port = stream->port;
     ns = port_write(port, buff, n, msg);
     
-    stream->outb+=ns;
-    tick=tickget(); if (ns>0) stream->tact=tick;
+    stream->outb += ns;
+    tick = tickget(); 
+    
+    if (ns > 0) 
+        stream->tact=tick;
     
     if ((int)(tick-stream->tick)>tirate) {
         stream->outr=(stream->outb-stream->outbt)*8000/(tick-stream->tick);
         stream->tick=tick; stream->outbt=stream->outb;
     }
+
     strunlock(stream);
     return ns;
 }
@@ -2004,7 +2002,9 @@ extern int strstat(stream_t *stream, char *msg)
     port = stream->port;
     state = port_state(port);
     
-    if (state==2&&(int)(tickget()-stream->tact)<=TINTACT) state=3;
+    if (state==2&&(int)(tickget()-stream->tact)<=TINTACT) 
+        state=3;
+
     strunlock(stream);
     return state;
 }

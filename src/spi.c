@@ -177,7 +177,6 @@ int  spi_write (struct port_dev_s *port, const unsigned char *buff, int n, char 
 int spi_read(struct port_dev_s *port, unsigned char *buff, int n, char *msg)
 {
     int rc;
-    int i;
     struct spi_ioc_transfer transaction = {0};
 
     struct spi_dev_s *device = (struct spi_dev_s *) port;
@@ -198,11 +197,6 @@ int spi_read(struct port_dev_s *port, unsigned char *buff, int n, char *msg)
         perror("ioctl: ");
         return 0;
     }
-
-    for (i = 0; i < n; i++) {
-        fprintf(stderr, "0x%x ", buff[i]);
-    }
-    fprintf(stderr, "\n");
 
     return n;
 }
