@@ -11,6 +11,7 @@
 #endif
 
 #define TIMETAGH_LEN        64          /* time tag file header length */
+int fswapmargin;  /* file swap margin (s) */
 
 struct file_t {            /* file control type */
     FILE *fp;               /* file pointer */
