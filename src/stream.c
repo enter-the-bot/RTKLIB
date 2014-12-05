@@ -1314,15 +1314,14 @@ extern void strclose(stream_t *stream)
 extern void strsync(stream_t *stream1, stream_t *stream2)
 {
     struct file_t *file1,*file2;
-    if (stream1->type!=STR_FILE||stream2->type!=STR_FILE) return;
+
+    if (stream1->type != STR_FILE || stream2->type != STR_FILE) {
+        return;
+    }
     
-    struct file_dev_s *port1 = (struct file_dev_s*) stream1->port;
-    struct file_dev_s *port2 = (struct file_dev_s*) stream2->port;
+    /* TODO: Ugly downcast. Fifure out how to deal with it in a neater way */
 
-    file1 = port1->handle;
-    file2 = port2->handle;
-
-    if (file1&&file2) syncfile(file1,file2);
+    file_sync(stream1->port, stream2->port);
 }
 /* lock/unlock stream ----------------------------------------------------------
 * lock/unlock stream
@@ -1540,10 +1539,19 @@ extern void strsetproxy(const char *addr)
 *-----------------------------------------------------------------------------*/
 extern gtime_t strgettime(stream_t *stream)
 {
+    gtime_t time;
+    double start;
+
     struct file_t *file;
-    if (stream->type==STR_FILE&&(stream->mode&STR_MODE_R)&&
-        (file=(struct file_t *)stream->port->handle)) {
-        return timeadd(file->time,file->start); /* replay start time */
+    if  (stream->type == STR_FILE && 
+        (stream->mode & STR_MODE_R)) {
+
+        /* TODO: get rid of downcating */
+
+        time = file_get_time(stream->port);
+        start = file_get_start(stream->port);
+
+        return timeadd(time,start); /* replay start time */
     }
     return utc2gpst(timeget());
 }

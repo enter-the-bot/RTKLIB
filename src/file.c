@@ -2,7 +2,6 @@
 #include <stdio.h>
 
 #include "file.h"
-#include "rtklib.h"
 
 #define FILE_IO_DEBUG 1
 #ifdef  FILE_IO_DEBUG
@@ -52,6 +51,32 @@ static void swapfile    (struct file_t *file, gtime_t time, char *msg);
 static void swapclose   (struct file_t *file);
 static void syncfile    (struct file_t *file1, struct file_t *file2);
 static int  openfile_   (struct file_t *file, gtime_t time, char *msg);
+
+
+/* TODO: GET RID OF THIS METHODS */
+double file_get_start(struct port_dev_s *port)
+{
+    struct file_dev_s *device = (struct file_dev_s*) port;
+    return device->handle.start;
+}
+
+gtime_t file_get_time(struct port_dev_s *port)
+{
+    struct file_dev_s *device = (struct file_dev_s*) port;
+    return device->handle.time;
+}
+
+void file_sync(struct port_dev_s *port2, struct port_dev_s *port1)
+{
+    struct file_dev_s *device1 = (struct file_dev_s*) port1;
+    struct file_dev_s *device2 = (struct file_dev_s*) port2;
+
+    struct file_t *file1 = &device1->handle;
+    struct file_t *file2 = &device2->handle;
+
+    if (file1 && file2) 
+        syncfile(file1,file2);
+}
 
 struct port_dev_s *file_initialize()
 {
@@ -198,7 +223,6 @@ int file_read(struct port_dev_s *port, unsigned char *buff, int nmax, char *msg)
     return (int)nr;
 }
 
-static int fswapmargin=30;  /* file swap margin (s) */
 int file_write(struct port_dev_s *port, const unsigned char *buff, int n, char *msg)
 {
     struct file_dev_s *device = (struct file_dev_s*) port;
