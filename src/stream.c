@@ -69,7 +69,6 @@ static const char rcsid[]="$Id$";
 
 #define TINTACT             200         /* period for stream active (ms) */
 #define SERIBUFFSIZE        4096        /* serial buffer size (bytes) */
-#define TIMETAGH_LEN        64          /* time tag file header length */
 #define MAXCLI              32          /* max client connection for tcp svr */
 #define MAXSTATMSG          32          /* max length of status message */
 
@@ -158,8 +157,6 @@ static int tirate   =1000;  /* avraging time for data rate (ms) */
 static int buffsize =32768; /* receive/send buffer size (bytes) */
 static char localdir[1024]=""; /* local directory for ftp/http */
 static char proxyaddr[256]=""; /* http/ntrip/ftp proxy address */
-static unsigned int tick_master=0; /* time tick master for replay */
-static int fswapmargin=30;  /* file swap margin (s) */
 
 /* decode tcp/ntrip path (path=[user[:passwd]@]addr[:port][/mntpnt[:str]]) ---*/
 static void decodetcppath(const char *path, char *addr, char *port, char *user,
@@ -1316,10 +1313,15 @@ extern void strclose(stream_t *stream)
 *-----------------------------------------------------------------------------*/
 extern void strsync(stream_t *stream1, stream_t *stream2)
 {
-    file_t *file1,*file2;
+    struct file_t *file1,*file2;
     if (stream1->type!=STR_FILE||stream2->type!=STR_FILE) return;
-    file1=(file_t*)stream1->port;
-    file2=(file_t*)stream2->port;
+    
+    struct file_dev_s *port1 = (struct file_dev_s*) stream1->port;
+    struct file_dev_s *port2 = (struct file_dev_s*) stream2->port;
+
+    file1 = port1->handle;
+    file2 = port2->handle;
+
     if (file1&&file2) syncfile(file1,file2);
 }
 /* lock/unlock stream ----------------------------------------------------------
@@ -1538,9 +1540,9 @@ extern void strsetproxy(const char *addr)
 *-----------------------------------------------------------------------------*/
 extern gtime_t strgettime(stream_t *stream)
 {
-    file_t *file;
+    struct file_t *file;
     if (stream->type==STR_FILE&&(stream->mode&STR_MODE_R)&&
-        (file=(file_t *)stream->port)) {
+        (file=(struct file_t *)stream->port->handle)) {
         return timeadd(file->time,file->start); /* replay start time */
     }
     return utc2gpst(timeget());

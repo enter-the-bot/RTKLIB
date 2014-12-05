@@ -11,6 +11,8 @@
 #define debug(fmt, args ...)
 #endif
 
+#define TIMETAGH_LEN        64          /* time tag file header length */
+
 struct file_t {            /* file control type */
     FILE *fp;               /* file pointer */
     FILE *fp_tag;           /* file pointer of tag file */
@@ -196,6 +198,7 @@ int file_read(struct port_dev_s *port, unsigned char *buff, int nmax, char *msg)
     return (int)nr;
 }
 
+static int fswapmargin=30;  /* file swap margin (s) */
 int file_write(struct port_dev_s *port, const unsigned char *buff, int n, char *msg)
 {
     struct file_dev_s *device = (struct file_dev_s*) port;
@@ -259,7 +262,7 @@ int file_write(struct port_dev_s *port, const unsigned char *buff, int n, char *
 }
 
 /* get state file ------------------------------------------------------------*/
-static int statefile(struct port_dev_s *port)
+static int file_state(struct port_dev_s *port)
 {
     struct file_dev_s *device = (struct file_dev_s*) port;
     struct file_t *file = &device->handle;
